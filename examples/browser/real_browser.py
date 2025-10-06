@@ -20,10 +20,11 @@ browser = Browser(
 
 
 async def main():
+	# save storage state
 	agent = Agent(
-		llm = ChatGoogle(model='gemini-2.5-flash'),
+		llm=ChatGoogle(model='gemini-flash-latest'),
 		# Google blocks this approach, so we use a different search engine
-		task='Visit https://duckduckgo.com and search for "browser-use founders"',
+		task='go to amazon.com and buy pens to draw on the whiteboard',
 		browser=browser,
 	)
 	await agent.run()

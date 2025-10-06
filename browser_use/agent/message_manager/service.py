@@ -163,8 +163,11 @@ class MessageManager:
 		return '\n'.join(items_to_include)
 
 	def add_new_task(self, new_task: str) -> None:
-		self.task = new_task
-		task_update_item = HistoryItem(system_message=f'User updated <user_request> to: {new_task}')
+		new_task = '<follow_up_user_request> ' + new_task.strip() + ' </follow_up_user_request>'
+		if '<initial_user_request>' not in self.task:
+			self.task = '<initial_user_request>' + self.task + '</initial_user_request>'
+		self.task += '\n' + new_task
+		task_update_item = HistoryItem(system_message=new_task)
 		self.state.agent_history_items.append(task_update_item)
 
 	def _update_agent_history_description(
@@ -184,6 +187,7 @@ class MessageManager:
 		action_results = ''
 		result_len = len(result)
 		read_state_idx = 0
+
 		for idx, action_result in enumerate(result):
 			if action_result.include_extracted_content_only_once and action_result.extracted_content:
 				self.state.read_state_description += (
@@ -207,11 +211,24 @@ class MessageManager:
 				action_results += f'{error_text}\n'
 				logger.debug(f'Added error to action_results: {error_text}')
 
+		# Simple 60k character limit for read_state_description
+		MAX_CONTENT_SIZE = 60000
+		if len(self.state.read_state_description) > MAX_CONTENT_SIZE:
+			self.state.read_state_description = (
+				self.state.read_state_description[:MAX_CONTENT_SIZE] + '\n... [Content truncated at 60k characters]'
+			)
+			logger.debug(f'Truncated read_state_description to {MAX_CONTENT_SIZE} characters')
+
 		self.state.read_state_description = self.state.read_state_description.strip('\n')
 
 		if action_results:
 			action_results = f'Result:\n{action_results}'
 		action_results = action_results.strip('\n') if action_results else None
+
+		# Simple 60k character limit for action_results
+		if action_results and len(action_results) > MAX_CONTENT_SIZE:
+			action_results = action_results[:MAX_CONTENT_SIZE] + '\n... [Content truncated at 60k characters]'
+			logger.debug(f'Truncated action_results to {MAX_CONTENT_SIZE} characters')
 
 		# Build the history item
 		if model_output is None:
@@ -268,7 +285,7 @@ class MessageManager:
 		model_output: AgentOutput | None = None,
 		result: list[ActionResult] | None = None,
 		step_info: AgentStepInfo | None = None,
-		use_vision=True,
+		use_vision: bool | Literal['auto'] = 'auto',
 		page_filtered_actions: str | None = None,
 		sensitive_data=None,
 		available_file_paths: list[str] | None = None,  # Always pass current available_file_paths
@@ -288,10 +305,36 @@ class MessageManager:
 			self.sensitive_data = effective_sensitive_data
 			self.sensitive_data_description = self._get_sensitive_data_description(browser_state_summary.url)
 
-		# Use only the current screenshot
+		# Use only the current screenshot, but check if action results request screenshot inclusion
 		screenshots = []
-		if browser_state_summary.screenshot:
+		include_screenshot_requested = False
+
+		# Check if any action results request screenshot inclusion
+		if result:
+			for action_result in result:
+				if action_result.metadata and action_result.metadata.get('include_screenshot'):
+					include_screenshot_requested = True
+					logger.debug('Screenshot inclusion requested by action result')
+					break
+
+		# Handle different use_vision modes:
+		# - "auto": Only include screenshot if explicitly requested by action (e.g., screenshot)
+		# - True: Always include screenshot
+		# - False: Never include screenshot
+		include_screenshot = False
+		if use_vision is True:
+			# Always include screenshot when use_vision=True
+			include_screenshot = True
+		elif use_vision == 'auto':
+			# Only include screenshot if explicitly requested by action when use_vision="auto"
+			include_screenshot = include_screenshot_requested
+		# else: use_vision is False, never include screenshot (include_screenshot stays False)
+
+		if include_screenshot and browser_state_summary.screenshot:
 			screenshots.append(browser_state_summary.screenshot)
+
+		# Use vision in the user message if screenshots are included
+		effective_use_vision = len(screenshots) > 0
 
 		# Create single state message with all content
 		assert browser_state_summary
@@ -310,7 +353,7 @@ class MessageManager:
 			vision_detail_level=self.vision_detail_level,
 			include_recent_events=self.include_recent_events,
 			sample_images=self.sample_images,
-		).get_user_message(use_vision)
+		).get_user_message(effective_use_vision)
 
 		# Set the state message with caching enabled
 		self._set_message_with_type(state_message, 'state')
@@ -363,10 +406,7 @@ class MessageManager:
 
 	def _set_message_with_type(self, message: BaseMessage, message_type: Literal['system', 'state']) -> None:
 		"""Replace a specific state message slot with a new message"""
-		# filter out sensitive data from the message
-		if self.sensitive_data:
-			message = self._filter_sensitive_data(message)
-
+		# Don't filter system and state messages - they should contain placeholder tags or normal conversation
 		if message_type == 'system':
 			self.state.history.system_message = message
 		elif message_type == 'state':
@@ -376,10 +416,7 @@ class MessageManager:
 
 	def _add_context_message(self, message: BaseMessage) -> None:
 		"""Add a contextual message specific to this step (e.g., validation errors, retry instructions, timeout warnings)"""
-		# filter out sensitive data from the message
-		if self.sensitive_data:
-			message = self._filter_sensitive_data(message)
-
+		# Don't filter context messages - they should contain normal conversation or error messages
 		self.state.history.context_messages.append(message)
 
 	@time_execution_sync('--filter_sensitive_data')
