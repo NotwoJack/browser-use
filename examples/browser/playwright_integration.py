@@ -24,7 +24,7 @@ except ImportError as e:
 	print('Also run: playwright install chromium')
 	sys.exit(1)
 
-from browser_use import Agent, BrowserSession, ChatOpenAI, Tools
+from browser_use import Agent, BrowserSession, ChatGoogle, Tools
 from browser_use.agent.views import ActionResult
 
 # Global Playwright browser instance - shared between custom actions
@@ -338,7 +338,7 @@ async def main():
 			
 			This demonstrates how Browser-Use AI can orchestrate tasks while using Playwright's precise capabilities for specific operations.
 			""",
-			llm=ChatOpenAI(model='gpt-4.1-mini'),
+			llm = ChatGoogle(model='gemini-2.5-flash'),
 			tools=tools,  # Our custom tools with Playwright actions
 			browser_session=browser_session,
 		)

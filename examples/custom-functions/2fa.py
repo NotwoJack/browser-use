@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-from browser_use import Agent
+from browser_use import Agent,ChatGoogle
 
 secret_key = os.environ.get('OTP_SECRET_KEY')
 if not secret_key:
@@ -29,4 +29,4 @@ When you input bu_2fa_code, the 6 digit code will be generated automatically.
 """
 
 
-Agent(task=task, sensitive_data=sensitive_data).run_sync()  # type: ignore
+Agent(task=task, llm = ChatGoogle(model='gemini-2.5-flash'),sensitive_data=sensitive_data).run_sync()  # type: ignore

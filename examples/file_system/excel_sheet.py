@@ -2,7 +2,7 @@ import asyncio
 import os
 import sys
 
-from browser_use.llm.openai.chat import ChatOpenAI
+from browser_use import ChatGoogle
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -12,7 +12,7 @@ load_dotenv()
 
 from browser_use import Agent
 
-llm = ChatOpenAI(model='o4-mini')
+llm = ChatGoogle(model='gemini-2.5-flash')
 
 
 task = (

@@ -19,7 +19,7 @@ if deepseek_api_key is None:
 
 async def main():
 	llm = ChatDeepSeek(
-		base_url='https://api.deepseek.com/v1',
+		base_url='https://openrouter.ai/api/v1',
 		model='deepseek-chat',
 		api_key=deepseek_api_key,
 	)

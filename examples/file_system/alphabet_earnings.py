@@ -5,7 +5,7 @@ import shutil
 
 from dotenv import load_dotenv
 
-from browser_use import Agent, ChatOpenAI
+from browser_use import Agent, ChatGoogle
 
 load_dotenv()
 
@@ -20,7 +20,7 @@ Read the PDF and save 3 interesting data points in "alphabet_earnings.pdf" and s
 
 agent = Agent(
 	task=task,
-	llm=ChatOpenAI(model='o4-mini'),
+	llm = ChatGoogle(model='gemini-2.5-flash'),
 	file_system_path=str(agent_dir / 'fs'),
 	flash_mode=True,
 )
